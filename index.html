@@ -16,9 +16,9 @@
   <button id="connect" style="display:none">Conectar Wallet</button>
   <button id="sign" style="display:none">Firmar Mensaje</button>
 
-  <script type="module">
-    // ✅ Importa desde Skypack SIN espacios
-    import { PhantomWalletAdapter } from 'https://cdn.skypack.dev/@solana/wallet-adapter-phantom@0.9.23';
+  <script src="./dist/daily-sol-wallet.umd.js"></script>
+  <script> // ✅ Importa desde Skypack SIN espacios
+    const { PhantomWalletAdapter } = DailySolWallet;
     
     // Obtiene parámetros de la URL
     const urlParams = new URLSearchParams(window.location.search);

@@ -1,0 +1,88 @@
+<!-- verify-wallet.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Verificar Wallet - Daily Sol</title>
+  <meta charset="utf-8">
+  <script src="https://unpkg.com/@solana/wallet-adapter@latest/dist/umd/index.js"></script>
+</head>
+<body>
+  <h2>Verificar propiedad de wallet</h2>
+  <p id="status">Conectando...</p>
+  <button id="connect" style="display:none">Conectar Wallet</button>
+  <button id="sign" style="display:none">Firmar Mensaje</button>
+
+  <script>
+    const { WalletAdapterNetwork } = solanaWalletAdapter;
+    const { PhantomWalletAdapter } = solanaWalletAdapterPhantom;
+
+    // Lee el nonce y chat_id de la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const nonce = urlParams.get('nonce');
+    const chatId = urlParams.get('chat_id');
+    const backendUrl = 'https://tu-dominio.com/api/verify-signature'; // ← tu API
+
+    if (!nonce || !chatId) {
+      document.getElementById('status').innerText = 'Faltan parámetros.';
+      throw new Error('Missing params');
+    }
+
+    let provider;
+
+    async function connect() {
+      try {
+        const phantom = new PhantomWalletAdapter();
+        await phantom.connect();
+        provider = phantom;
+        document.getElementById('status').innerText = 
+          `Conectado: ${provider.publicKey.toBase58()}`;
+        document.getElementById('sign').style.display = 'inline';
+      } catch (err) {
+        console.error(err);
+        document.getElementById('status').innerText = 'Error al conectar.';
+      }
+    }
+
+    async function signMessage() {
+      if (!provider) return;
+      
+      const message = new TextEncoder().encode(nonce);
+      try {
+        const signature = await provider.signMessage(message, 'utf8');
+        const sigBase64 = btoa(String.fromCharCode(...signature));
+        
+        // Enviar al backend
+        const res = await fetch(backendUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            wallet_address: provider.publicKey.toBase58(),
+            nonce: nonce,
+            signature: sigBase64
+          })
+        });
+
+        if (res.ok) {
+          document.getElementById('status').innerText = 
+            '✅ ¡Firma enviada! Vuelve a Telegram.';
+        } else {
+          const err = await res.json();
+          document.getElementById('status').innerText = 
+            '❌ Error: ' + (err.detail || 'falló la verificación');
+        }
+      } catch (err) {
+        console.error(err);
+        document.getElementById('status').innerText = 'Error al firmar.';
+      }
+    }
+
+    // Inicializar
+    window.onload = () => {
+      document.getElementById('connect').onclick = connect;
+      document.getElementById('sign').onclick = signMessage;
+      document.getElementById('connect').style.display = 'inline';
+    };
+  </script>
+</body>
+</html>

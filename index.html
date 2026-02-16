@@ -20,7 +20,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const nonce = urlParams.get('nonce');
     const chatId = urlParams.get('chat_id');
-    const backendUrl = 'https://tu-dominio.com/api/verify-signature'; // ← tu API
+    const backendUrl = 'https://d041-181-169-169-198.ngrok-free.app/verify-signature'; // ← tu API
 
     if (!nonce || !chatId) {
       document.getElementById('status').innerText = 'Faltan parámetros.';

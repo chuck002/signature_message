@@ -1,61 +1,67 @@
 <!-- verify-wallet.html -->
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+  <meta charset="utf-8" />
   <title>Verificar Wallet - Daily Sol</title>
-  <meta charset="utf-8">
-  <script type="module">
-  import { WalletAdapterNetwork } from 'https://cdn.skypack.dev/@solana/wallet-adapter-base';
-  import { PhantomWalletAdapter } from 'https://cdn.skypack.dev/@solana/wallet-adapter-phantom';
-  // ... usa los adaptadores
-</script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    button { margin: 10px 5px; padding: 8px 16px; }
+    #status { margin: 10px 0; font-weight: bold; }
+  </style>
 </head>
 <body>
   <h2>Verificar propiedad de wallet</h2>
-  <p id="status">Conectando...</p>
+  <p id="status">Cargando...</p>
   <button id="connect" style="display:none">Conectar Wallet</button>
   <button id="sign" style="display:none">Firmar Mensaje</button>
 
-  <script>
-    const { WalletAdapterNetwork } = solanaWalletAdapter;
-    const { PhantomWalletAdapter } = solanaWalletAdapterPhantom;
-
-    // Lee el nonce y chat_id de la URL
+  <script type="module">
+    // ✅ Importa desde Skypack SIN espacios
+    import { PhantomWalletAdapter } from 'https://cdn.skypack.dev/@solana/wallet-adapter-phantom@latest';
+    
+    // Obtiene parámetros de la URL
     const urlParams = new URLSearchParams(window.location.search);
     const nonce = urlParams.get('nonce');
     const chatId = urlParams.get('chat_id');
-    const backendUrl = 'https://d041-181-169-169-198.ngrok-free.app/verify-signature'; // ← tu API
+    const backendUrl = 'https://d041-181-169-169-198.ngrok-free.app/verify-signature';
+
+    const statusEl = document.getElementById('status');
+    const connectBtn = document.getElementById('connect');
+    const signBtn = document.getElementById('sign');
 
     if (!nonce || !chatId) {
-      document.getElementById('status').innerText = 'Faltan parámetros.';
-      throw new Error('Missing params');
+      statusEl.innerText = '❌ Faltan parámetros (nonce o chat_id).';
+      throw new Error('Missing URL params');
     }
 
-    let provider;
+    let provider = null;
 
     async function connect() {
       try {
-        const phantom = new PhantomWalletAdapter();
-        await phantom.connect();
-        provider = phantom;
-        document.getElementById('status').innerText = 
-          `Conectado: ${provider.publicKey.toBase58()}`;
-        document.getElementById('sign').style.display = 'inline';
+        provider = new PhantomWalletAdapter();
+        await provider.connect();
+        statusEl.innerText = `✅ Conectado: ${provider.publicKey.toBase58()}`;
+        signBtn.style.display = 'inline-block';
       } catch (err) {
-        console.error(err);
-        document.getElementById('status').innerText = 'Error al conectar.';
+        console.error('Error al conectar:', err);
+        statusEl.innerText = '❌ Error al conectar wallet.';
       }
     }
 
     async function signMessage() {
-      if (!provider) return;
-      
-      const message = new TextEncoder().encode(nonce);
+      if (!provider?.publicKey) {
+        statusEl.innerText = '⚠️ No hay wallet conectada.';
+        return;
+      }
+
       try {
+        const message = new TextEncoder().encode(nonce);
         const signature = await provider.signMessage(message, 'utf8');
-        const sigBase64 = btoa(String.fromCharCode(...signature));
-        
-        // Enviar al backend
+        const sigBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)));
+
+        statusEl.innerText = 'Enviando firma...';
+
         const res = await fetch(backendUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -68,25 +74,22 @@
         });
 
         if (res.ok) {
-          document.getElementById('status').innerText = 
-            '✅ ¡Firma enviada! Vuelve a Telegram.';
+          statusEl.innerText = '✅ ¡Firma verificada! Vuelve a Telegram.';
         } else {
-          const err = await res.json();
-          document.getElementById('status').innerText = 
-            '❌ Error: ' + (err.detail || 'falló la verificación');
+          const err = await res.json().catch(() => ({}));
+          statusEl.innerText = '❌ Error: ' + (err.detail || 'falló la verificación');
         }
       } catch (err) {
-        console.error(err);
-        document.getElementById('status').innerText = 'Error al firmar.';
+        console.error('Error al firmar:', err);
+        statusEl.innerText = '❌ Error al firmar mensaje.';
       }
     }
 
-    // Inicializar
-    window.onload = () => {
-      document.getElementById('connect').onclick = connect;
-      document.getElementById('sign').onclick = signMessage;
-      document.getElementById('connect').style.display = 'inline';
-    };
+    // Inicializar UI
+    connectBtn.addEventListener('click', connect);
+    signBtn.addEventListener('click', signMessage);
+    connectBtn.style.display = 'inline-block';
+    statusEl.innerText = 'Listo para conectar.';
   </script>
 </body>
 </html>
